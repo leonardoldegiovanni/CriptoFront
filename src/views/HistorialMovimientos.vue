@@ -37,6 +37,7 @@
           <td>${{ typeof tx.money === 'number' ? tx.money.toFixed(2) : 'N/A' }}</td>
           <td>
             <button @click="verTransaccion(tx)">Ver</button>
+             <button @click="modificarTransaccion(tx)" class="btn-modificar">Modificar</button>
             <button @click="eliminarTransaccion(tx.id)" class="btn-eliminar">Eliminar</button>
           </td>
         </tr>
@@ -120,7 +121,13 @@ async function obtenerTransacciones() {
 function verTransaccion(tx) {
   transaccionSeleccionadaParaVer.value = tx;
 }
+/*
+function modificarTransaccion(tx) {
 
+  console.log('Modificar transacción:', tx);
+  alert(`Modificar transacción con ID: ${tx.id}`);
+}
+*/
 async function eliminarTransaccion(id) {
   if (!confirm('¿Eliminar esta transacción?')) return;
   mensajeError.value = '';
@@ -169,6 +176,13 @@ button:disabled {
   background-color: #f5f5f5;
   color: #aaa;
   cursor: not-allowed;
+}
+.btn-modificar {
+  background-color: #e0f7ff;
+  margin: 0 5px;
+}
+.btn-modificar:hover:not(:disabled) {
+  background-color: #b3e5fc;
 }
 .btn-eliminar {
   background-color: #ffe0e0;
