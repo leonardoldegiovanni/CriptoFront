@@ -4,6 +4,7 @@
       <router-link to="/">Inicio</router-link> |
       <router-link to="/nueva-compra">Nueva Compra</router-link> |
       <router-link to="/nuevo-cliente">Nuevo Cliente</router-link>
+      <router-link to="/historial-movimientos">Historial de Movimientos</router-link>
     </nav>
     <router-view/>
   </div>

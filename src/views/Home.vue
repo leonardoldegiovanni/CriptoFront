@@ -10,6 +10,9 @@
        <router-link to="/nueva-compra" class="menu-button">
         📈 Nueva Compra de Criptomoneda
       </router-link>
+      <router-link to="/historial-movimientos" class="menu-button">
+        📊 Historial de Movimientos
+      </router-link>
     </div>
   </div>
 </template>
