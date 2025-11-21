@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router"
 import Home from "../views/Home.vue"
 import NuevaCompra from "../views/NuevaCompra.vue"
+import NuevaVenta from "../views/NuevaVenta.vue"
 import NuevoCliente from "../views/NuevoCliente.vue"
 import HistorialMovimientos from "../views/HistorialMovimientos.vue"
+import VerTransaccion from "../views/VerTransaccion.vue"
+import EditarTransaccion from "../views/EditarTransaccion.vue"
 
 const routes = [
   {
@@ -16,6 +19,11 @@ const routes = [
     component: NuevaCompra,
   },
   {
+    path: "/nueva-venta",
+    name: "NuevaVenta",
+    component: NuevaVenta,
+  },
+  {
     path: "/nuevo-cliente",
     name: "NuevoCliente",
     component: NuevoCliente,
@@ -23,7 +31,17 @@ const routes = [
   {
     path: "/historial-movimientos",
     name: "HistorialMovimientos",
-    component: HistorialMovimientos,    
+    component: HistorialMovimientos,
+  },
+  {
+    path: "/transaccion/:id",
+    name: "VerTransaccion",
+    component: VerTransaccion,
+  },
+  {
+    path: "/transaccion/:id/editar",
+    name: "EditarTransaccion",
+    component: EditarTransaccion,
   },
 ]
 

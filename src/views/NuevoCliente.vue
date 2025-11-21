@@ -9,7 +9,7 @@
           Nombre Completo:
           <Field v-model="datosCliente.name" type="text" name="name" id="name" placeholder="Ej: Carlos Guevara"/>
         </label>
-        <ErrorMessage name="name"></ErrorMessage>
+        <ErrorMessage name="name" class="error-message"></ErrorMessage>
       </div>
 
       <div class="form-group">
@@ -17,7 +17,7 @@
           Email:
           <Field v-model="datosCliente.email" type="email" name="email" id="email" placeholder="Ej: carlosguevara@gmail.com"/>
         </label>
-        <ErrorMessage name="email"></ErrorMessage>
+        <ErrorMessage name="email" class="error-message"></ErrorMessage>
       </div>
 
       <div class="form-group">
@@ -32,7 +32,6 @@
 </template>
 
 <script setup>
-
 import { ref } from 'vue';
 import { Form, Field, ErrorMessage } from 'vee-validate';
 import * as yup from 'yup';
@@ -46,24 +45,20 @@ let schema = {
     .required('El email es obligatorio')                   
     .email('Debe ingresar un email válido')               
     .max(150, 'El email no puede tener más de 150 caracteres') 
-
 }
+
 let datosCliente = ref({
   name: '',  
   email: ''    
 });
 
-// Variables reactivas para manejar mensajes de respuesta
-let mensaje = ref('');      // Texto del mensaje a mostrar
-let tipoMensaje = ref('');  // Tipo de mensaje ('success' o 'error')
-
+let mensaje = ref('');
+let tipoMensaje = ref('');
 
 async function enviarDatosApi() {
-
   mensaje.value = '';
   
   try {
-
     let datosParaEnviar = {
       name: datosCliente.value.name.trim(),                    
       email: datosCliente.value.email.trim().toLowerCase()  
@@ -77,15 +72,12 @@ async function enviarDatosApi() {
       }
     });
     
-   
     if (response.ok) {
-
       await response.json();
       
       mensaje.value = `Cliente registrado correctamente: ${datosParaEnviar.name}`;
       tipoMensaje.value = 'success';
       
-
       datosCliente.value = {
         name: '',
         email: ''
@@ -102,34 +94,38 @@ async function enviarDatosApi() {
     tipoMensaje.value = 'error';
   }
 }
-
 </script>
 
-
 <style scoped>
-/* Contenedor principal del formulario */
 .nuevo-cliente {
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Espaciado entre grupos de campos del formulario */
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+}
+
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
-/* Estilo para las etiquetas de los campos */
 label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 0.5rem;
   font-weight: bold;
+  color: #555;
 }
 
-/* Estilo para todos los inputs */
 input {
   width: 100%;
-  padding: 10px;
+  padding: 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
@@ -143,7 +139,7 @@ input {
   font-size: 16px;
   border-radius: 4px;
   cursor: pointer;
-  width: auto;
+  width: 100%;
 }
 
 .submit-button:hover {

@@ -1,13 +1,13 @@
 <template>
-  <div class="nueva-compra">
-    <h1>Dar de Alta Nueva Compra</h1>
+  <div class="nueva-venta">
+    <h1>Dar de Alta Nueva Venta</h1>
     
-    <Form :validation-schema="schema" @submit="enviarDatosApi" id="formulario-compra">
+    <Form :validation-schema="schema" @submit="enviarDatosApi" id="formulario-venta">
       
       <div class="form-group">
         <label>
           Criptomoneda:
-          <Field as="select" v-model="datosCompra.crypto_code" name="crypto_code" id="crypto_code" @change="actualizarPrecio">
+          <Field as="select" v-model="datosVenta.crypto_code" name="crypto_code" id="crypto_code" @change="actualizarPrecio">
             <option value="">Seleccione una criptomoneda</option>
             <option value="BTC">Bitcoin (BTC)</option>
             <option value="ETH">Ethereum (ETH)</option>
@@ -34,7 +34,7 @@
         <label>
           Cantidad de Criptomoneda (mínimo 0.01):
           <Field 
-            v-model="datosCompra.crypto_amount" 
+            v-model="datosVenta.crypto_amount" 
             type="text" 
             name="crypto_amount" 
             id="crypto_amount" 
@@ -60,7 +60,7 @@
       <div class="form-group">
         <label>
           Cliente:
-          <Field as="select" v-model="datosCompra.client_id" name="client_id" id="client_id">
+          <Field as="select" v-model="datosVenta.client_id" name="client_id" id="client_id">
             <option value="">Seleccione un cliente</option>
             <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
               {{ cliente.name }}
@@ -73,13 +73,13 @@
       <div class="form-group">
         <label>
           Fecha y Hora:
-          <Field v-model="datosCompra.datetime" type="datetime-local" name="datetime" id="datetime"/>
+          <Field v-model="datosVenta.datetime" type="datetime-local" name="datetime" id="datetime"/>
         </label>
         <ErrorMessage name="datetime" class="error-message"></ErrorMessage>
       </div>
 
       <div class="form-group">
-        <input type="submit" value="Registrar Compra" class="submit-button"/>
+        <input type="submit" value="Registrar Venta" class="submit-button"/>
       </div>
     </Form>
 
@@ -94,9 +94,9 @@ import { ref, onMounted } from 'vue';
 import { Form, Field, ErrorMessage } from 'vee-validate';
 import * as yup from 'yup';
 
-const datosCompra = ref({
+const datosVenta = ref({
   crypto_code: '',
-  action: 'purchase',
+  action: 'sale',
   client_id: '',
   crypto_amount: '',
   datetime: ''
@@ -122,7 +122,7 @@ const schema = yup.object({
 });
 
 async function actualizarPrecio() {
-  const cryptoCode = datosCompra.value.crypto_code;
+  const cryptoCode = datosVenta.value.crypto_code;
   if (!cryptoCode) {
     precioActualNumerico.value = 0;
     precioActualFormateado.value = '';
@@ -146,8 +146,8 @@ async function actualizarPrecio() {
     if (!response.ok) throw new Error('No se pudo obtener el precio');
     const data = await response.json();
 
-    precioActualNumerico.value = data.totalAsk;
-    precioActualFormateado.value = `$${data.totalAsk.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    precioActualNumerico.value = data.totalBid;
+    precioActualFormateado.value = `$${data.totalBid.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     calcularTotal();
   } catch (error) {
     console.error('Error al obtener precio:', error);
@@ -158,7 +158,7 @@ async function actualizarPrecio() {
 }
 
 function calcularTotal() {
-  const cantidad = parseFloat(datosCompra.value.crypto_amount);
+  const cantidad = parseFloat(datosVenta.value.crypto_amount);
   const precio = precioActualNumerico.value;
 
   if (!isNaN(cantidad) && cantidad >= MIN_VALUE_FROM_BACKEND && precio > 0) {
@@ -176,7 +176,7 @@ function calcularTotal() {
 async function enviarDatosApi() {
   mensaje.value = '';
   try {
-    const cantidad = parseFloat(datosCompra.value.crypto_amount);
+    const cantidad = parseFloat(datosVenta.value.crypto_amount);
     const montoTotal = cantidad * precioActualNumerico.value;
 
     if (isNaN(cantidad) || cantidad < MIN_VALUE_FROM_BACKEND) {
@@ -192,12 +192,12 @@ async function enviarDatosApi() {
     }
 
     const datosParaEnviar = {
-      CryptoCode: datosCompra.value.crypto_code,
-      Action: 'purchase',
-      ClientId: parseInt(datosCompra.value.client_id),
+      CryptoCode: datosVenta.value.crypto_code,
+      Action: 'sale',
+      ClientId: parseInt(datosVenta.value.client_id),
       CryptoAmount: cantidad,
       Money: montoTotal,
-      Datetime: new Date(datosCompra.value.datetime).toISOString()
+      Datetime: new Date(datosVenta.value.datetime).toISOString()
     };
 
     const response = await fetch('https://localhost:7143/api/Transaction/', {
@@ -207,11 +207,11 @@ async function enviarDatosApi() {
     });
 
     if (response.ok) {
-      mensaje.value = '¡Compra registrada con éxito!';
+      mensaje.value = '¡Venta registrada con éxito!';
       tipoMensaje.value = 'success';
-      datosCompra.value = {
+      datosVenta.value = {
         crypto_code: '',
-        action: 'purchase',
+        action: 'sale',
         client_id: '',
         crypto_amount: '',
         datetime: new Date().toISOString().slice(0, 16)
@@ -224,7 +224,7 @@ async function enviarDatosApi() {
     }
   } catch (error) {
     console.error('Error:', error);
-    mensaje.value = `Error al registrar la compra: ${error.message}`;
+    mensaje.value = `Error al registrar la venta: ${error.message}`;
     tipoMensaje.value = 'error';
   }
 }
@@ -241,13 +241,13 @@ async function cargarClientes() {
 }
 
 onMounted(() => {
-  datosCompra.value.datetime = new Date().toISOString().slice(0, 16);
+  datosVenta.value.datetime = new Date().toISOString().slice(0, 16);
   cargarClientes();
 });
 </script>
 
 <style scoped>
-.nueva-compra {
+.nueva-venta {
   max-width: 600px;
   margin: 0 auto;
   padding: 2rem;

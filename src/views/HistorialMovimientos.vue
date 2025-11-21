@@ -1,253 +1,472 @@
 <template>
-  <div class="movimientos-cripto">
-    <h1>Movimientos</h1>
+  <div class="historial-movimientos">
+    <h1>Historial de Movimientos</h1>
 
-    <div class="filtro">
-      <label for="clienteSelect">Cliente:</label>
-      <select v-model="clienteSeleccionado" id="clienteSelect">
-        <option value="">-- Seleccione --</option>
-        <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-          {{ cliente.name }}
-        </option>
-      </select>
-      <button @click="obtenerTransacciones" :disabled="!clienteSeleccionado || cargando">
-        {{ cargando ? 'Buscando...' : 'Buscar' }}
-      </button>
+    <div class="filtros">
+      <div class="form-group">
+        <label for="cliente-select">Seleccionar Cliente:</label>
+        <select v-model="clienteSeleccionado" id="cliente-select">
+          <option value="">Todos los clientes</option>
+          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+            {{ cliente.name }}
+          </option>
+        </select>
+      </div>
+      <button @click="cargarTransacciones" class="btn-buscar">Buscar Transacciones</button>
     </div>
 
-    <div v-if="cargando">Cargando...</div>
+    <div v-if="cargando" class="mensaje-cargando">Cargando transacciones...</div>
 
-    <table v-if="transacciones.length > 0" class="tabla-datos">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Tipo</th>
-          <th>Cripto</th>
-          <th>Cantidad</th>
-          <th>Monto (ARS)</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="tx in transacciones" :key="tx.id">
-          <td>{{ new Date(tx.datetime).toLocaleDateString('es-AR') }}</td>
-          <td>{{ tx.action === 'purchase' ? 'Compra' : 'Venta' }}</td>
-          <td>{{ tx.cryptoCode }}</td>
-          <td>{{ tx.cryptoAmount }}</td>
-          <td>${{ typeof tx.money === 'number' ? tx.money.toFixed(2) : 'N/A' }}</td>
-          <td>
-            <button @click="verTransaccion(tx)">Ver</button>
-             <button @click="modificarTransaccion(tx)" class="btn-modificar">Modificar</button>
-            <button @click="eliminarTransaccion(tx.id)" class="btn-eliminar">Eliminar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div v-if="!cargando && transacciones.length === 0 && clienteSeleccionado">
-      No se encontraron transacciones.
+    <div v-if="!cargando && transacciones.length === 0 && buscado" class="mensaje-vacio">
+      No se encontraron transacciones para este cliente.
     </div>
-    
-    <div v-if="transaccionSeleccionadaParaVer" class="modal-detalle">
-      <div class="modal-contenido">
-        <h2>Detalle Transacción</h2>
-        <p><strong>ID:</strong> {{ transaccionSeleccionadaParaVer.id }}</p>
-        <p><strong>Fecha:</strong> {{ new Date(transaccionSeleccionadaParaVer.datetime).toLocaleString('es-AR') }}</p>
-        <p><strong>Tipo:</strong> {{ transaccionSeleccionadaParaVer.action === 'purchase' ? 'Compra' : 'Venta' }}</p>
-        <p><strong>Criptomoneda:</strong> {{ transaccionSeleccionadaParaVer.cryptoCode }}</p>
-        <p><strong>Cantidad:</strong> {{ transaccionSeleccionadaParaVer.cryptoAmount }}</p>
-        <p><strong>Monto (ARS):</strong> ${{ typeof transaccionSeleccionadaParaVer.money === 'number' ? transaccionSeleccionadaParaVer.money.toFixed(2) : 'N/A' }}</p>
-        <button @click="transaccionSeleccionadaParaVer = null">Cerrar</button>
+
+    <div v-if="!cargando && transacciones.length > 0" class="tabla-container">
+      <table class="tabla-transacciones">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Cliente</th>
+            <th>Cripto</th>
+            <th>Acción</th>
+            <th>Cantidad</th>
+            <th>Monto (ARS)</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="transaccion in transacciones" :key="transaccion.id">
+            <td>{{ transaccion.id }}</td>
+            <td>{{ obtenerNombreCliente(transaccion.clientId) }}</td>
+            <td>{{ transaccion.cryptoCode }}</td>
+            <td>
+              <span class="badge" :class="transaccion.action === 'purchase' ? 'badge-compra' : 'badge-venta'">
+                {{ transaccion.action === 'purchase' ? 'Compra' : 'Venta' }}
+              </span>
+            </td>
+            <td>{{ formatearCantidad(transaccion.cryptoAmount) }}</td>
+            <td>{{ formatearMonto(transaccion.money) }}</td>
+            <td>{{ formatearFecha(transaccion.datetime) }}</td>
+            <td class="acciones">
+              <button @click="verTransaccion(transaccion.id)" class="btn btn-ver">Ver</button>
+              <button @click="editarTransaccion(transaccion.id)" class="btn btn-editar">Editar</button>
+              <button @click="confirmarBorrado(transaccion)" class="btn btn-borrar">Borrar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="mostrarModal" class="modal-overlay" @click="cerrarModal">
+      <div class="modal" @click.stop>
+        <h2>Confirmar Eliminación</h2>
+        <p>¿Está seguro que desea eliminar esta transacción?</p>
+        <div class="modal-info">
+          <p><strong>Cliente:</strong> {{ obtenerNombreCliente(transaccionABorrar?.clientId) }}</p>
+          <p><strong>Cripto:</strong> {{ transaccionABorrar?.cryptoCode }}</p>
+          <p><strong>Acción:</strong> {{ transaccionABorrar?.action === 'purchase' ? 'Compra' : 'Venta' }}</p>
+          <p><strong>Cantidad:</strong> {{ formatearCantidad(transaccionABorrar?.cryptoAmount) }}</p>
+        </div>
+        <div class="modal-acciones">
+          <button @click="cerrarModal" class="btn btn-cancelar">Cancelar</button>
+          <button @click="borrarTransaccion" class="btn btn-confirmar">Confirmar</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="mensajeError" class="mensaje-error">{{ mensajeError }}</div>
-    <div v-if="mensajeExito" class="mensaje-exito">{{ mensajeExito }}</div>
+    <div v-if="mensaje" class="mensaje" :class="tipoMensaje">
+      {{ mensaje }}
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 
 const clientes = ref([]);
-const clienteSeleccionado = ref('');
 const transacciones = ref([]);
+const clienteSeleccionado = ref('');
 const cargando = ref(false);
-const transaccionSeleccionadaParaVer = ref(null);
-const mensajeError = ref('');
-const mensajeExito = ref('');
+const buscado = ref(false);
+const mostrarModal = ref(false);
+const transaccionABorrar = ref(null);
+const mensaje = ref('');
+const tipoMensaje = ref('');
 
-
-async function llamarAPI(url, opciones = {}) {
-  const response = await fetch(url, opciones);
-  if (!response.ok) {
-    throw new Error(`Error de red: ${response.status}`);
-  }
-  return response.json();
-}
-
-onMounted(async () => {
-  try {
-    clientes.value = await llamarAPI('https://localhost:7143/api/Client');
-  } catch (error) {
-    mensajeError.value = 'No se pudo cargar la lista de clientes.';
-    console.error('Detalle del error al cargar clientes:', error);
-  }
+onMounted(() => {
+  cargarClientes();
 });
 
-async function obtenerTransacciones() {
-  mensajeError.value = '';
-  mensajeExito.value = '';
-  transacciones.value = [];
-
-  if (!clienteSeleccionado.value) {
-    mensajeError.value = 'Por favor, seleccione un cliente.';
-    return;
-  }
-
-  cargando.value = true;
+async function cargarClientes() {
   try {
-    const url = `https://localhost:7143/api/Transaction/client/${clienteSeleccionado.value}`;
-    transacciones.value = await llamarAPI(url);
+    const response = await fetch('https://localhost:7143/api/Client');
+    if (response.ok) {
+      clientes.value = await response.json();
+      console.log('[v0] Clientes cargados:', clientes.value);
+    }
   } catch (error) {
-    mensajeError.value = 'Error al obtener las transacciones.';
-    console.error('Detalle del error al obtener transacciones:', error);
+    console.error('Error al cargar clientes:', error);
+  }
+}
+
+async function cargarTransacciones() {
+  cargando.value = true;
+  buscado.value = true;
+  mensaje.value = '';
+  
+  try {
+    let url = 'https://localhost:7143/api/Transaction';
+    
+    if (clienteSeleccionado.value) {
+      url += `?clientId=${clienteSeleccionado.value}`;
+    }
+    
+    const response = await fetch(url);
+    if (response.ok) {
+      transacciones.value = await response.json();
+      console.log('[v0] Transacciones cargadas:', transacciones.value);
+    } else {
+      throw new Error('Error al cargar transacciones');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    mensaje.value = 'Error al cargar las transacciones';
+    tipoMensaje.value = 'error';
   } finally {
     cargando.value = false;
   }
 }
 
-function verTransaccion(tx) {
-  transaccionSeleccionadaParaVer.value = tx;
+function obtenerNombreCliente(transaccionClientId) {
+  console.log('[v0] Buscando cliente con ID:', transaccionClientId);
+  console.log('[v0] Lista de clientes disponibles:', clientes.value.map(c => ({ id: c.id, name: c.name })));
+  
+  const cliente = clientes.value.find(c => c.id === transaccionClientId);
+  
+  if (cliente) {
+    console.log('[v0] Cliente encontrado:', cliente);
+    return cliente.name;
+  }
+  
+  console.log('[v0] Cliente no encontrado para ID:', transaccionClientId);
+  return 'Desconocido';
 }
-/*
-function modificarTransaccion(tx) {
 
-  console.log('Modificar transacción:', tx);
-  alert(`Modificar transacción con ID: ${tx.id}`);
+function formatearCantidad(cantidad) {
+  return cantidad.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 }
-*/
-async function eliminarTransaccion(id) {
-  if (!confirm('¿Eliminar esta transacción?')) return;
-  mensajeError.value = '';
-  mensajeExito.value = '';
+
+function formatearMonto(monto) {
+  return `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatearFecha(fecha) {
+  return new Date(fecha).toLocaleString('es-AR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function verTransaccion(id) {
+  router.push(`/transaccion/${id}`);
+}
+
+function editarTransaccion(id) {
+  router.push(`/transaccion/${id}/editar`);
+}
+
+function confirmarBorrado(transaccion) {
+  transaccionABorrar.value = transaccion;
+  mostrarModal.value = true;
+}
+
+function cerrarModal() {
+  mostrarModal.value = false;
+  transaccionABorrar.value = null;
+}
+
+async function borrarTransaccion() {
+  if (!transaccionABorrar.value) return;
 
   try {
-    const response = await fetch(`https://localhost:7143/api/Transaction/${id}`, { method: 'DELETE' });
-    if (!response.ok) {
-      throw new Error(`Error del servidor: ${response.status}`);
+    const response = await fetch(`https://localhost:7143/api/Transaction/${transaccionABorrar.value.id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      mensaje.value = 'Transacción eliminada con éxito';
+      tipoMensaje.value = 'success';
+      cerrarModal();
+      cargarTransacciones();
+    } else {
+      throw new Error('Error al eliminar la transacción');
     }
-
-    transacciones.value = transacciones.value.filter(tx => tx.id !== id);
-    mensajeExito.value = 'Transacción eliminada.';
-    setTimeout(() => { mensajeExito.value = ''; }, 3000);
-
   } catch (error) {
-    mensajeError.value = 'No se pudo eliminar la transacción.';
-    console.error('Detalle del error al eliminar:', error); 
+    console.error('Error:', error);
+    mensaje.value = 'Error al eliminar la transacción';
+    tipoMensaje.value = 'error';
+    cerrarModal();
   }
 }
 </script>
 
 <style scoped>
+.historial-movimientos {
+  max-width: 1400px;
+  margin: 0 auto;
+}
 
-.movimientos-cripto {
-  padding: 10px;
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 2rem;
 }
-.filtro {
-  margin-bottom: 15px;
+
+.filtros {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
 }
-.filtro label, .filtro select, .filtro button {
-  margin-right: 5px;
+
+.form-group {
+  flex: 1;
+  min-width: 200px;
 }
-select, button {
-  padding: 5px 8px;
-  border: 1px solid #999;
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2c3e50;
 }
-button {
-  background-color: #f0f0f0;
+
+select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: #2c3e50;
+  background-color: white;
+}
+
+select option {
+  color: #2c3e50;
+  padding: 0.5rem;
+}
+
+.btn-buscar {
+  background-color: #42b983;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  border-radius: 4px;
   cursor: pointer;
 }
-button:hover:not(:disabled) {
-  background-color: #ddd;
+
+.btn-buscar:hover {
+  background-color: #369870;
 }
-button:disabled {
-  background-color: #f5f5f5;
-  color: #aaa;
-  cursor: not-allowed;
+
+.mensaje-cargando,
+.mensaje-vacio {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+  color: #2c3e50;
+  font-weight: 500;
 }
-.btn-modificar {
-  background-color: #e0f7ff;
-  margin: 0 5px;
+
+.tabla-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-x: auto;
 }
-.btn-modificar:hover:not(:disabled) {
-  background-color: #b3e5fc;
-}
-.btn-eliminar {
-  background-color: #ffe0e0;
-}
-.btn-eliminar:hover:not(:disabled) {
-  background-color: #ffc0c0;
-}
-.tabla-datos {
+
+.tabla-transacciones {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 15px;
 }
-.tabla-datos th, .tabla-datos td {
-  border: 1px solid #ccc;
-  padding: 6px;
+
+.tabla-transacciones th,
+.tabla-transacciones td {
+  padding: 1rem;
   text-align: left;
-  color: #000000;
+  border-bottom: 1px solid #eee;
+  color: #2c3e50;
 }
-.tabla-datos th {
-  background-color: #f0f0f0;
-  font-weight: bold;
+
+.tabla-transacciones th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #2c3e50;
 }
-.mensaje-error, .mensaje-exito {
-  margin-top: 10px;
-  padding: 8px;
-  border: 1px solid;
+
+.tabla-transacciones tbody tr:hover {
+  background-color: #f8f9fa;
 }
-.mensaje-error {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
-.mensaje-exito {
-  color: #155724;
+
+.badge-compra {
   background-color: #d4edda;
-  border-color: #c3e6cb;
+  color: #155724;
 }
-.modal-detalle {
+
+.badge-venta {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.acciones {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.btn-ver {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-ver:hover {
+  background-color: #0056b3;
+}
+
+.btn-editar {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.btn-editar:hover {
+  background-color: #e0a800;
+}
+
+.btn-borrar {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-borrar:hover {
+  background-color: #c82333;
+}
+
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
-.modal-contenido {
-  background-color: #fff;
-  padding: 20px;
-  border: 1px solid #666;
-  min-width: 300px;
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
 }
-.modal-contenido h2 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 1.2em;
+
+.modal h2 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
 }
-.modal-contenido p {
-  margin: 5px 0;
-  color: #000000;
+
+.modal-info {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
 }
-.modal-contenido button {
-  margin-top: 15px;
-  display: block;
+
+.modal-info p {
+  margin: 0.5rem 0;
+  color: #2c3e50;       
+  font-size: 1rem;
+}
+
+.modal-info p strong {
+  color: #1a252f;
+  font-weight: 600;
+}
+
+.modal-acciones {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.btn-cancelar {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-cancelar:hover {
+  background-color: #5a6268;
+}
+
+.btn-confirmar {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-confirmar:hover {
+  background-color: #c82333;
+}
+
+.mensaje {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.mensaje.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.mensaje.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 </style>
